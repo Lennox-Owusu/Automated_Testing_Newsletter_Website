@@ -91,14 +91,14 @@ jobs:
         if: failure()
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          secure: true
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "❌ CI Failed — ${{ github.repository }}"
+          subject: "❌ CI failed — ${{ github.repository }} @ ${{ github.ref_name }}"
           to: ${{ secrets.MAIL_TO }}
           from: ${{ secrets.MAIL_FROM }}
+          secure: true
           html_body: |
             <h3>CI FAILED</h3>
             <p>Repository: ${{ github.repository }}</p>
@@ -136,7 +136,6 @@ jobs:
           to: ${{ secrets.MAIL_TO }}
           from: ${{ secrets.MAIL_FROM }}
           secure: true
-          content_type: text/html
           html_body: |
             <h3>CI PASSED</h3>
             <p><b>Repository:</b> ${{ github.repository }}</p>
