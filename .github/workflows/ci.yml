@@ -106,22 +106,5 @@ jobs:
             <p>Commit: ${{ github.sha }}</p>
             <p>Run: <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Run</a></p>
         
-# --- Notifications (success only) ---
-      - name: Slack notify on success
-        if: success()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          REPO: ${{ github.repository }}
-          BRANCH: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          TEXT="✅ CI passed on *${REPO}*
-          Branch: ${BRANCH}
-          Commit: ${SHA}
-          Run: ${RUN_URL}"
-
-          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])')")
-          curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
 
       
