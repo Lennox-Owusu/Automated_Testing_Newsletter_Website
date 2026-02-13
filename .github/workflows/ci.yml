@@ -124,22 +124,4 @@ jobs:
           JSON_PAYLOAD=$(printf '{"text": "%s"}' "$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])')")
           curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
 
-      - name: Email notify on success
-        if: success()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: ${{ secrets.SMTP_HOST }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "✅ CI passed — ${{ github.repository }} @ ${{ github.ref_name }}"
-          to: ${{ secrets.MAIL_TO }}
-          from: ${{ secrets.MAIL_FROM }}
-          secure: true
-          html_body: |
-            <h3>CI PASSED</h3>
-            <p><b>Repository:</b> ${{ github.repository }}</p>
-            <p><b>Branch:</b> ${{ github.ref_name }}</p>
-            <p><b>Commit:</b> ${{ github.sha }}</p>
-            <p>View details: <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">Workflow run</a></p>
-
+      
