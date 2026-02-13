@@ -2,9 +2,9 @@ name: CI - Selenium JUnit
 
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
   pull_request:
-    branches: [ "**" ]
+    branches: ["**"]
 
 jobs:
   tests:
@@ -43,14 +43,42 @@ jobs:
           name: surefire-reports
           path: target/surefire-reports
 
-      # (Optional) Fail-fast Slack notification (enable once you add a secret)
-      # - name: Slack notify on failure
-      #   if: failure()
-      #   uses: slackapi/slack-github-action@v1.27.0
-      #   with:
-      #     payload: |
-      #       {
-      #         "text": "❌ CI failed on `${{ github.repository }}`\nBranch: `${{ github.ref_name }}`\nCommit: `${{ github.sha }}`\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      # --- Notifications (failure only) ---
+
+      - name: Slack notify on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TEXT="❌ CI failed on *${REPO}*
+          Branch: ${BRANCH}
+          Commit: ${SHA}
+          Run: ${RUN_URL}"
+
+          # Build JSON without jq to avoid YAML quoting issues
+          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])')")
+          curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
+
+      - name: Email notify on failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "❌ CI failed — ${{ github.repository }} @ ${{ github.ref_name }}"
+          to: ${{ secrets.MAIL_TO }}
+          from: ${{ secrets.MAIL_FROM }}
+          secure: true
+          content_type: text/html
+          html_body: |
+            <h3>CI FAILED</h3>
+            <p><b>Repository:</b> ${{ github.repository }}</p>
+            <p><b>Branch:</b> ${{ github.ref_name }}</p>
+            <p><b>Commit:</b> ${{ github.sha }}</p>
+            <p>View details: <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">Workflow run</a></p>
