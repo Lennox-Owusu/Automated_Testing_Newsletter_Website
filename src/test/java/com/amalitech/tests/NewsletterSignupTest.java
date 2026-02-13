@@ -49,7 +49,7 @@ public class NewsletterSignupTest extends BaseTest {
                 .submitInvalid();
 
         assertTrue(page.isErrorDisplayed(), "Error message should be displayed for invalid email.");
-        assertFalse(page.getErrorMessage().trim().isEmpty(), "Error text should not be empty.");
+        assertFalse(page.getErrorMessage().trim().isEmpty(), "Error text should be empty.");
     }
 
     @Test
