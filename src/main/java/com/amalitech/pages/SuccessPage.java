@@ -2,41 +2,40 @@ package com.amalitech.pages;
 
 import com.amalitech.core.BasePage;
 import com.amalitech.utils.WaitUtils;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.*;
 
 public class SuccessPage extends BasePage {
 
-    private static final By SUCCESS_TITLE =
-            By.xpath("//h2[contains(translate(.,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'thanks')]");
-
+    private static final By SUCCESS_SCREEN = By.id("success-screen");
+    private static final By SUCCESS_TITLE = By.id("success-title");
     private static final By SUCCESS_EMAIL = By.id("success-email");
+    private static final By DISMISS_BUTTON = By.id("dismiss");
+    private static final By FORM_CONTAINER = By.cssSelector("main.container");
 
     public SuccessPage(WebDriver driver) {
         super(driver);
     }
 
     public boolean isLoaded() {
-        try {
-            WaitUtils.waitForVisibleBy(driver, SUCCESS_TITLE, 10);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        WebElement screen = WaitUtils.waitForVisibleBy(driver, SUCCESS_SCREEN, 5);
+        return screen.isDisplayed();
     }
 
     public String getTitleText() {
-        return WaitUtils.waitForVisibleBy(driver, SUCCESS_TITLE, 10).getText().trim();
+        return WaitUtils.waitForVisibleBy(driver, SUCCESS_TITLE, 5).getText().trim();
     }
 
     public String getSuccessEmail() {
-        return WaitUtils.waitForVisibleBy(driver, By.id("success-email"), 5).getText().trim();
+        return WaitUtils.waitForVisibleBy(driver, SUCCESS_EMAIL, 5).getText().trim();
     }
 
-    private static final By DISMISS_BUTTON = By.id("dismiss");
-
     public NewsletterPage dismiss() {
-        driver.findElement(DISMISS_BUTTON).click();
+        WaitUtils.waitForVisibleBy(driver, DISMISS_BUTTON, 5).click();
+
+        // success-screen becomes hidden and form becomes visible
+        WaitUtils.waitForHidden(driver, SUCCESS_SCREEN, 5);
+        WaitUtils.waitForVisibleBy(driver, FORM_CONTAINER, 5);
+
         return new NewsletterPage(driver);
     }
 }
