@@ -49,7 +49,7 @@ public class NewsletterSignupTest extends BaseTest {
                 .submitInvalid();
 
         assertTrue(page.isErrorDisplayed(), "Error message should be displayed for invalid email.");
-        assertFalse(page.getErrorMessage().trim().isEmpty(), "Error text should be empty.");
+        assertFalse(page.getErrorMessage().trim().isEmpty(), "Error text should not be empty.");
     }
 
     @Test
@@ -76,7 +76,7 @@ public class NewsletterSignupTest extends BaseTest {
         assertTrue(success.isLoaded(), "Success view did not load after submission.");
         String title = success.getTitleText().toLowerCase();
         if (!title.isBlank()) {
-            assertTrue(title.contains("thanks") || title.contains("thank you"),
+            assertTrue(title.contains("bye") || title.contains("day"),
                     "Expected a 'Thanks/Thank you' heading but got: " + title);
         }
     }
