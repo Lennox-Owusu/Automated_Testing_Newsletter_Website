@@ -11,6 +11,11 @@ public abstract class BaseTest {
 
     @BeforeEach
     void setUp() {
+        // Add SSL/TLS configuration BEFORE creating ChromeDriver
+        System.setProperty("https.protocols", "TLSv1.2,TLSv1.3");
+        System.setProperty("jdk.tls.client.protocols", "TLSv1.2,TLSv1.3");
+        System.setProperty("jsse.enableSNIExtension", "true");
+
         ChromeOptions options = new ChromeOptions();
 
         // Read headless from system property: -Dheadless=true (default: false for local dev)
@@ -19,13 +24,18 @@ public abstract class BaseTest {
             options.addArguments("--headless=new");
         }
 
-        // Stable defaults for CI Linux
+        // Stable defaults for CI Linux + SSL fixes
         options.addArguments(
                 "--window-size=1920,1080",
                 "--disable-gpu",
                 "--no-sandbox",
-                "--disable-dev-shm-usage"
+                "--disable-dev-shm-usage",
+                "--disable-ssl-key-logging",  // Security best practice
+                "--allow-insecure-localhost"   // If testing on localhost
         );
+
+        // Accept all certificates (for GitHub Pages and self-signed certs)
+        options.setAcceptInsecureCerts(true);
 
         driver = new ChromeDriver(options);
 
