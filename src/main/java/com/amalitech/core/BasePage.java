@@ -16,7 +16,4 @@ public abstract class BasePage {
         PageFactory.initElements(driver, this); // initializes @FindBy elements
     }
 
-    public String getTitle() {
-        return driver.getTitle();
-    }
 }

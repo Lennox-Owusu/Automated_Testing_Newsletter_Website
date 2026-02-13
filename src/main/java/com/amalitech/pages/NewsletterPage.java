@@ -2,77 +2,77 @@ package com.amalitech.pages;
 
 import com.amalitech.core.BasePage;
 import com.amalitech.utils.WaitUtils;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.support.FindBy;
 
 public class NewsletterPage extends BasePage {
 
     private static final String URL = "https://lennox-owusu.github.io/newsletter-website/";
 
-    public NewsletterPage(WebDriver driver) {
-        super(driver);
-    }
-
     @FindBy(id = "email")
     private WebElement emailInput;
+
+    @FindBy(id = "error")
+    private WebElement errorMessage;
 
     @FindBy(css = "button[type='submit']")
     private WebElement submitButton;
 
-    // THIS is your real error element
-    @FindBy(id = "error")
-    private WebElement errorMessage;
-
     @FindBy(css = "main.container")
-    private WebElement mainContainer;
+    private WebElement formContainer;
 
-    public boolean isFormVisible() {
-        return mainContainer.isDisplayed();
+    public NewsletterPage(WebDriver driver) {
+        super(driver);
     }
 
-    /** Load page */
     public NewsletterPage open() {
         driver.get(URL);
+        WaitUtils.waitForPageReady(driver, 5);
+        WaitUtils.waitForVisible(driver, formContainer);
         return this;
     }
 
-    /** Type email into input */
+    public boolean isFormVisible() {
+        try {
+            return formContainer.isDisplayed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public NewsletterPage enterEmail(String email) {
+        WaitUtils.waitForVisible(driver, emailInput);
         emailInput.clear();
         emailInput.sendKeys(email);
         return this;
     }
 
-    /** Submit valid email → goes to success screen */
+    /** VALID email path → success screen appears */
     public SuccessPage submit() {
         submitButton.click();
+
+        // main.container becomes hidden (JS adds .hidden)
+        WaitUtils.waitForHidden(driver, By.cssSelector("main.container"), 5);
         return new SuccessPage(driver);
     }
 
-    /**
-     * Submit invalid email → remain on same page
-     * Wait until JavaScript inserts error text.
-     */
+    /** INVALID email path → stay on form and error appears */
     public NewsletterPage submitInvalid() {
         submitButton.click();
-
-        // Wait until <span id="error"> gets text injected
-        WaitUtils.waitForNonEmptyText(driver, errorMessage, 2);
-
+        WaitUtils.waitForVisible(driver, errorMessage);
+        WaitUtils.waitForNonEmptyText(driver, errorMessage, 5);
         return this;
     }
 
-    /** Does error message exist? */
     public boolean isErrorDisplayed() {
         try {
+            WaitUtils.waitForVisible(driver, errorMessage);
             return !errorMessage.getText().trim().isEmpty();
         } catch (Exception e) {
             return false;
         }
     }
 
-    /** Get error message text */
     public String getErrorMessage() {
         return errorMessage.getText().trim();
     }
