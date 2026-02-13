@@ -33,7 +33,11 @@ jobs:
 
       # Run tests in headless mode (your BaseTest reads -Dheadless=true)
       - name: Run tests (headless)
-        run: mvn -B -Dheadless=true -Dhttps.protocols=TLSv1.2,TLSv1.3 -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3 clean test
+        run: mvn -B -Dheadless=true clean test
+        env:
+          HTTP_PROXY: ""
+          HTTPS_PROXY: ""
+
 
 
       # Always upload reports, even on failure
