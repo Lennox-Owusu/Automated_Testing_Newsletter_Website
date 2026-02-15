@@ -76,7 +76,7 @@ public class NewsletterSignupTest extends BaseTest {
         assertTrue(success.isLoaded(), "Success view did not load after submission.");
         String title = success.getTitleText().toLowerCase();
         if (!title.isBlank()) {
-            assertTrue(title.contains("xxx") || title.contains("ppp"),
+            assertTrue(title.contains("thanks") || title.contains("thank you"),
                     "Expected a 'Thanks/Thank you' heading but got: " + title);
         }
     }
