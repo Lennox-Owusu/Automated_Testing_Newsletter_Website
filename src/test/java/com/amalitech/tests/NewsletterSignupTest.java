@@ -40,7 +40,7 @@ public class NewsletterSignupTest extends BaseTest {
                 "Expected a validation message, but got: " + page.getErrorMessage());
     }
 
-    @ParameterizedTest(name = "Invalid email should show error: {0}")
+    @ParameterizedTest(name = "Verify invalid email should show error: {0}")
     @ValueSource(strings = {"756..@abc", "user@@domain", "user@", "plainaddress", "a@b"})
     void testInvalidEmailShowsError(String badEmail) {
         NewsletterPage page = new NewsletterPage(driver)
@@ -53,7 +53,7 @@ public class NewsletterSignupTest extends BaseTest {
     }
 
     @Test
-    @DisplayName("Dismiss button should return to the form screen")
+    @DisplayName("Verify dismiss button should return to the form screen")
     void testDismissReturnsToForm() {
         SuccessPage success = new NewsletterPage(driver)
                 .open()
