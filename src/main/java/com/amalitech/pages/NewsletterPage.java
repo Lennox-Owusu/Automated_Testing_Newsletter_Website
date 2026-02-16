@@ -47,16 +47,16 @@ public class NewsletterPage extends BasePage {
         return this;
     }
 
-    /** VALID email path → success screen appears */
+    // VALID email path → success screen appears
     public SuccessPage submit() {
         submitButton.click();
 
-        // main.container becomes hidden (JS adds .hidden)
+        // main.container becomes hidden
         WaitUtils.waitForHidden(driver, By.cssSelector("main.container"), 5);
         return new SuccessPage(driver);
     }
 
-    /** INVALID email path → stay on form and error appears */
+    //INVALID email path → stay on form and error appears
     public NewsletterPage submitInvalid() {
         submitButton.click();
         WaitUtils.waitForVisible(driver, errorMessage);

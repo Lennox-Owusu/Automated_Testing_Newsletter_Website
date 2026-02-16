@@ -18,7 +18,7 @@ public abstract class BaseTest {
 
         ChromeOptions options = new ChromeOptions();
 
-        // Read headless from system property: -Dheadless=true (default: false for local dev)
+        // Read headless from system property
         boolean headless = Boolean.parseBoolean(System.getProperty("headless", "false"));
         if (headless) {
             options.addArguments("--headless=new");
@@ -36,15 +36,12 @@ public abstract class BaseTest {
 
         // Accept all certificates (for GitHub Pages and self-signed certs)
         options.setAcceptInsecureCerts(true);
-
         driver = new ChromeDriver(options);
 
-        // maximize is redundant in headless; keeping only for local non-headless convenience
         if (!headless) {
             driver.manage().window().maximize();
         }
 
-        // Optional: expose base URL as a JVM property used by pages (fallback to your current URL)
         System.setProperty("app.baseUrl",
                 System.getProperty("app.baseUrl", "https://lennox-owusu.github.io/newsletter-website/"));
     }
