@@ -3,8 +3,12 @@ package com.amalitech.pages;
 import com.amalitech.core.BasePage;
 import com.amalitech.utils.WaitUtils;
 import org.openqa.selenium.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SuccessPage extends BasePage {
+
+    private static final Logger log = LoggerFactory.getLogger(SuccessPage.class);
 
     private static final By SUCCESS_SCREEN = By.id("success-screen");
     private static final By SUCCESS_TITLE = By.id("success-title");
@@ -17,22 +21,30 @@ public class SuccessPage extends BasePage {
     }
 
     public boolean isLoaded() {
+        log.info("Checking if success page is loaded...");
         WebElement screen = WaitUtils.waitForVisibleBy(driver, SUCCESS_SCREEN, 5);
-        return screen.isDisplayed();
+        boolean loaded = screen.isDisplayed();
+        log.info("Success page loaded: {}", loaded);
+        return loaded;
     }
 
     public String getTitleText() {
-        return WaitUtils.waitForVisibleBy(driver, SUCCESS_TITLE, 5).getText().trim();
+        String text = WaitUtils.waitForVisibleBy(driver, SUCCESS_TITLE, 5).getText().trim();
+        log.info("Success page title: {}", text);
+        return text;
     }
 
     public String getSuccessEmail() {
-        return WaitUtils.waitForVisibleBy(driver, SUCCESS_EMAIL, 5).getText().trim();
+        String value = WaitUtils.waitForVisibleBy(driver, SUCCESS_EMAIL, 5).getText().trim();
+        log.info("Success email displayed: {}", value);
+        return value;
     }
 
     public NewsletterPage dismiss() {
+        log.info("Clicking Dismiss button...");
         WaitUtils.waitForVisibleBy(driver, DISMISS_BUTTON, 5).click();
 
-        // success-screen becomes hidden and form becomes visible
+        log.debug("Waiting for success screen to hide and form to reappear");
         WaitUtils.waitForHidden(driver, SUCCESS_SCREEN, 5);
         WaitUtils.waitForVisibleBy(driver, FORM_CONTAINER, 5);
 
