@@ -59,13 +59,21 @@ jobs:
           SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          TEXT="❌ CI failed on *${REPO}*
-          Branch: ${BRANCH}
-          Commit: ${SHA}
-          Run: ${RUN_URL}"
+          TEXT="❌ *Build Failed — Automated Tests Encountered Issues*\n
+          • *Repository:* ${REPO}\n
+          • *Branch:* ${BRANCH}\n
+          • *Commit:* ${SHA}\n\n
+          One or more automated tests did not complete successfully.\n
+          This usually happens when the application behaves differently than expected.\n\n
+          *Possible Causes Include:*\n
+          • A page or element did not load in time\n
+          • Invalid or unexpected test data\n
+          • A recent change affected the user interface\n
+          • A button, field, or message was not found during the test\n\n
+          Please review the full CI logs to identify the exact step that failed.\n\n
+          👉 *View full CI details:* ${RUN_URL}"
 
-          # Build JSON without jq to avoid YAML quoting issues
-          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])')")
+          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
           curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
 
           
@@ -78,14 +86,16 @@ jobs:
           SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          TEXT="✅ CI passed on *${REPO}*
-          Branch: ${BRANCH}
-          Commit: ${SHA}
-          Run: ${RUN_URL}"
+          TEXT="🎉 *Build Successful — Automated Tests Passed*\n
+          • *Repository:* ${REPO}\n
+          • *Branch:* ${BRANCH}\n
+          • *Commit:* ${SHA}\n\n
+          All tests completed successfully, and the system behaved as expected.\n
+          No issues were detected.\n\n
+          👉 *View detailed CI run:* ${RUN_URL}"
 
-          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])')")
+          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
           curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
-
 
       - name: Email notify on failure
         if: failure()
