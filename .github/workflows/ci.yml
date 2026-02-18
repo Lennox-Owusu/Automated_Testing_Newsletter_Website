@@ -112,9 +112,6 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           SHA:    ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          FIRST_FAIL_CLASS: ${{ env.FIRST_FAIL_CLASS }}
-          FIRST_FAIL_METHOD: ${{ env.FIRST_FAIL_METHOD }}
-          FIRST_FAIL_MSG: ${{ env.FIRST_FAIL_MSG }}
         run: |
           # (Optional one-time debug, remove after verifying)
           echo "DEBUG FIRST_FAIL_CLASS=$FIRST_FAIL_CLASS"
