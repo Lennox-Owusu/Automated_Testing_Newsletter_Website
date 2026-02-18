@@ -253,16 +253,30 @@ jobs:
           All automated checks completed successfully.
           </p>
 
-          <table role="presentation" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;border:1px solid #eee;font-size:14px;">
-          <tr><td style="background:#fafafa;width:180px;"><b>Repository</b></td><td>${GITHUB_REPOSITORY}</td></tr>
-          <tr><td style="background:#fafafa;"><b>Branch</b></td><td>${GITHUB_REF_NAME}</td></tr>
-          <tr><td style="background:#fafafa;"><b>Commit</b></td><td>${GITHUB_SHA}</td></tr>
-          <tr><td style="background:#fafafa;"><b>Results</b></td><td>${PASSED_TESTS}/${TOTAL_TESTS} passed, ${SKIPPED_TESTS} skipped</td></tr>
+            <table role="presentation" cellspacing="0" cellpadding="6" 
+            style="border-collapse:collapse;width:100%;border:1px solid #eee;font-size:14px;">
+            <tr>
+           <td style="background:#fafafa;width:180px;"><b>Repository</b></td>
+           <td>${GITHUB_REPOSITORY}</td>
+           </tr>
+          <tr>
+          <td style="background:#fafafa;"><b>Branch</b></td>
+          <td>${GITHUB_REF_NAME}</td>
+          </tr>
+          <tr>
+          <td style="background:#fafafa;"><b>Commit</b></td>
+          <td>${GITHUB_SHA}</td>
+          </tr>
+          <tr>
+          <td style="background:#fafafa;"><b>Results</b></td>
+          <td>${PASSED_TESTS}/${TOTAL_TESTS} passed, ${SKIPPED_TESTS} skipped</td>
+          </tr>
           </table>
 
           <p style="margin:16px 0 0 0;">
           <a href="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          style="display:inline-block;background:#0ea5e9;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;">
+          style="display:inline-block;background:#0ea5e9;color:#fff;text-decoration:none;
+              padding:10px 14px;border-radius:6px;">
           View CI Run
           </a>
           </p>
