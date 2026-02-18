@@ -114,51 +114,32 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           FAIL_SECTION=""
-          if [ -n "${FIRST_FAIL_CLASS}${FIRST_FAIL_METHOD}" ]; then
-            FAIL_SECTION="• *Failing Test:* ${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}\n"
+          if [ -n "$FIRST_FAIL_CLASS" ] && [ -n "$FIRST_FAIL_METHOD" ]; then
+            FAIL_SECTION="• *Failing Test:* $FIRST_FAIL_CLASS.$FIRST_FAIL_METHOD\n"
+            echo "DEBUG: FIRST_FAIL_CLASS=$FIRST_FAIL_CLASS"
+            echo "DEBUG: FIRST_FAIL_METHOD=$FIRST_FAIL_METHOD"
+            echo "DEBUG: FIRST_FAIL_MSG=$FIRST_FAIL_MSG"
           fi
 
           ERROR_SECTION=""
-          if [ -n "${FIRST_FAIL_MSG}" ]; then
-            ERROR_SECTION="• *Error Message:* ${FIRST_FAIL_MSG}\n"
+          if [ -n "$FIRST_FAIL_MSG" ]; then
+            ERROR_SECTION="• *Error Message:* $FIRST_FAIL_MSG\n"
           fi
 
-          TEXT="❌ *Build Failed — Automated Tests*\n
-          • *Repository:* ${REPO}\n
-          • *Branch:* ${BRANCH}\n
-          • *Commit:* ${SHA}\n
-          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed,\n  ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped\n
-          ${FAIL_SECTION}${ERROR_SECTION}\n
-          Please review the CI logs for more details.\n\n
+          TEXT="❌ *Build Failed — Automated Tests*\n\n\
+          • *Repository:* ${REPO}\n\
+          • *Branch:* ${BRANCH}\n\
+          • *Commit:* ${SHA}\n\
+          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed, ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped\n\n\
+          ${FAIL_SECTION}${ERROR_SECTION}\
+          Please review the CI logs for more details.\n\n\
           👉 *View run:* ${RUN_URL}"
 
-          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
-          curl -s -X POST -H "Content-type: application/json" \
-            --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
-
-          
-      - name: Slack notify on success
-        if: success()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          REPO:   ${{ github.repository }}
-          BRANCH: ${{ github.ref_name }}
-          SHA:    ${{ github.sha }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          TOTAL_TESTS:   ${{ env.TOTAL_TESTS }}
-          PASSED_TESTS:  ${{ env.PASSED_TESTS }}
-          SKIPPED_TESTS: ${{ env.SKIPPED_TESTS }}
-        run: |
-          TEXT="🎉 *Build Successful — Automated Tests Passed*\n
-          • *Repository:* ${REPO}\n
-          • *Branch:* ${BRANCH}\n
-          • *Commit:* ${SHA}\n
-          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed, ${SKIPPED_TESTS} skipped\n\n
-          All checks completed successfully.\n\n
-          👉 *View run:* ${RUN_URL}"
-
-          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
-          curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
+          JSON_PAYLOAD=$(printf "%s" "$TEXT" | jq -Rs '{text: .}')
+          curl -s -X POST \
+            -H "Content-type: application/json" \
+            --data "$JSON_PAYLOAD" \
+            "$SLACK_WEBHOOK_URL"
 
       - name: Email notify on failure
         if: failure()
