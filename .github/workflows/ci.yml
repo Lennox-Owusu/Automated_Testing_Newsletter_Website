@@ -48,51 +48,123 @@ jobs:
           name: surefire-reports
           path: target/surefire-reports
 
+      - name: Summarize test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os, glob, xml.etree.ElementTree as ET
+
+          report_dir = "target/surefire-reports"
+          files = glob.glob(os.path.join(report_dir, "TEST-*.xml"))
+
+          total = failures = errors = skipped = 0
+          first_fail_class = first_fail_method = first_fail_msg = ""
+
+          for f in files:
+            try:
+              tree = ET.parse(f)
+              root = tree.getroot()
+              # attributes live on <testsuite ...>
+              total     += int(root.attrib.get("tests", "0"))
+              failures  += int(root.attrib.get("failures", "0"))
+              errors    += int(root.attrib.get("errors", "0"))
+              skipped   += int(root.attrib.get("skipped", "0"))
+
+              # capture first failing test details if not already found
+              if not first_fail_class:
+                for tc in root.iter("testcase"):
+                  # failure or error element means this test failed
+                  fe = tc.find("failure") or tc.find("error")
+                  if fe is not None:
+                    first_fail_class  = tc.attrib.get("classname","")
+                    first_fail_method = tc.attrib.get("name","")
+                    # Prefer the message attribute; fallback to text
+                    first_fail_msg = (fe.attrib.get("message") or (fe.text or "")).strip()
+                    # keep it concise
+                    if len(first_fail_msg) > 300:
+                      first_fail_msg = first_fail_msg[:300] + "…"
+                    break
+            except Exception:
+              # ignore malformed files
+              pass
+
+          passed = max(total - failures - errors - skipped, 0)
+
+          # write to GITHUB_ENV for later steps
+          with open(os.environ["GITHUB_ENV"], "a") as env:
+            env.write(f"TOTAL_TESTS={total}\n")
+            env.write(f"PASSED_TESTS={passed}\n")
+            env.write(f"FAILED_TESTS={failures}\n")
+            env.write(f"ERRORED_TESTS={errors}\n")
+            env.write(f"SKIPPED_TESTS={skipped}\n")
+            env.write(f"FIRST_FAIL_CLASS={first_fail_class}\n")
+            env.write(f"FIRST_FAIL_METHOD={first_fail_method}\n")
+            env.write(f"FIRST_FAIL_MSG={first_fail_msg}\n")
+          PY
+
       # --- Notifications (failure only) ---
 
       - name: Slack notify on failure
         if: failure()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          REPO: ${{ github.repository }}
+          REPO:   ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
+          SHA:    ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TOTAL_TESTS:    ${{ env.TOTAL_TESTS }}
+          PASSED_TESTS:   ${{ env.PASSED_TESTS }}
+          FAILED_TESTS:   ${{ env.FAILED_TESTS }}
+          ERRORED_TESTS:  ${{ env.ERRORED_TESTS }}
+          SKIPPED_TESTS:  ${{ env.SKIPPED_TESTS }}
+          FIRST_FAIL_CLASS:  ${{ env.FIRST_FAIL_CLASS }}
+          FIRST_FAIL_METHOD: ${{ env.FIRST_FAIL_METHOD }}
+          FIRST_FAIL_MSG:    ${{ env.FIRST_FAIL_MSG }}
         run: |
-          TEXT="❌ *Build Failed — Automated Tests Encountered Issues*\n
+          # Build a concise failing test line only if details exist
+          if [ -n "${FIRST_FAIL_CLASS}${FIRST_FAIL_METHOD}" ]; then
+            FAIL_LINE="• *First failing test:* ${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}\n"
+          else
+            FAIL_LINE=""
+          fi
+
+          if [ -n "${FIRST_FAIL_MSG}" ]; then
+            MSG_LINE="• *Error:* ${FIRST_FAIL_MSG}\n"
+          else
+            MSG_LINE=""
+          fi
+
+          TEXT="❌ *Build Failed — Automated Tests*\n
           • *Repository:* ${REPO}\n
           • *Branch:* ${BRANCH}\n
-          • *Commit:* ${SHA}\n\n
-          One or more automated tests did not complete successfully.\n
-          This usually happens when the application behaves differently than expected.\n\n
-          *Possible Causes Include:*\n
-          • A page or element did not load in time\n
-          • Invalid or unexpected test data\n
-          • A recent change affected the user interface\n
-          • A button, field, or message was not found during the test\n\n
-          Please review the full CI logs to identify the exact step that failed.\n\n
-          👉 *View full CI details:* ${RUN_URL}"
+          • *Commit:* ${SHA}\n
+          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed, ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped\n
+          ${FAIL_LINE}${MSG_LINE}\n
+          Please review the CI logs and test report for details.\n\n
+          👉 *View run:* ${RUN_URL}"
 
           JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
-          curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
 
           
       - name: Slack notify on success
         if: success()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          REPO: ${{ github.repository }}
+          REPO:   ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
+          SHA:    ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TOTAL_TESTS:   ${{ env.TOTAL_TESTS }}
+          PASSED_TESTS:  ${{ env.PASSED_TESTS }}
+          SKIPPED_TESTS: ${{ env.SKIPPED_TESTS }}
         run: |
           TEXT="🎉 *Build Successful — Automated Tests Passed*\n
           • *Repository:* ${REPO}\n
           • *Branch:* ${BRANCH}\n
-          • *Commit:* ${SHA}\n\n
-          All tests completed successfully, and the system behaved as expected.\n
-          No issues were detected.\n\n
-          👉 *View detailed CI run:* ${RUN_URL}"
+          • *Commit:* ${SHA}\n
+          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed, ${SKIPPED_TESTS} skipped\n\n
+          All checks completed successfully.\n\n
+          👉 *View run:* ${RUN_URL}"
 
           JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
           curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
