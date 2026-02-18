@@ -279,16 +279,16 @@ jobs:
         if: success()
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: ${{ secrets.SMTP_HOST }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          from: ${{ secrets.SMTP_USERNAME }}   # many SMTPs require From == authenticated user
-          to: ${{ secrets.MAIL_TO }}
+          server_address: smtp.gmail.com
+          server_port: 465
           secure: true
+          username: ${{ secrets.SMTP_USERNAME }}   # your full Gmail address
+          password: ${{ secrets.SMTP_PASSWORD }}   # Gmail App Password
+          from: ${{ secrets.SMTP_USERNAME }}        # must match Gmail account
+          to: ${{ secrets.MAIL_TO }}
           subject: "✅ CI passed — ${{ github.repository }} @ ${{ github.ref_name }}"
-          content_type: text/html
           html_body: ${{ steps.email_body_ok.outputs.html }}
+          
 
       - name: Summary
         if: always()
