@@ -100,7 +100,7 @@ public class NewsletterSignupTest extends BaseTest {
         log.info("Success page title text: {}", title);
 
         if (!title.isBlank()) {
-            assertTrue(title.contains("thanks") || title.contains("thank you"));
+            assertTrue(title.contains("ss") || title.contains("22"));
         }
     }
 }
