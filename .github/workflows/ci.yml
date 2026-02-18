@@ -140,36 +140,77 @@ jobs:
           SHA:    ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # (Optional one-time debug, remove after verifying)
-          echo "DEBUG FIRST_FAIL_CLASS=$FIRST_FAIL_CLASS"
-          echo "DEBUG FIRST_FAIL_METHOD=$FIRST_FAIL_METHOD"
-          echo "DEBUG FIRST_FAIL_MSG=$FIRST_FAIL_MSG"
+          echo "DEBUG FAIL CLASS: $FIRST_FAIL_CLASS"
+          echo "DEBUG FAIL METHOD: $FIRST_FAIL_METHOD"
+          echo "DEBUG FAIL MSG: $FIRST_FAIL_MSG"
 
-          FAIL_SECTION=""
-          if [ -n "$FIRST_FAIL_CLASS" ] && [ -n "$FIRST_FAIL_METHOD" ]; then
-            FAIL_SECTION="• *Failing Test:* $FIRST_FAIL_CLASS.$FIRST_FAIL_METHOD\n"
-          fi
-
-          # Escape any double quotes in the message to keep JSON valid
+          # Escape double quotes for JSON
           ESC_MSG=${FIRST_FAIL_MSG//\"/\\\"}
-          ERROR_SECTION=""
-          if [ -n "$ESC_MSG" ]; then
-            ERROR_SECTION="• *Error Message:* $ESC_MSG\n"
-          fi
 
-          TEXT="❌ *Build Failed — Automated Tests*\n
-          • *Repository:* ${REPO}\n
-          • *Branch:* ${BRANCH}\n
-          • *Commit:* ${SHA}\n
-          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed,\n  ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped\n
-          ${FAIL_SECTION}${ERROR_SECTION}\n
-          Please review the CI logs for more details.\n\n
-          👉 *View run:* ${RUN_URL}"
+          read -r -d '' PAYLOAD <<EOF
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "❌ CI Failed — Automated Tests"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\n${REPO}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Branch:*\n${BRANCH}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Commit:*\n${SHA}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Results:*\n${PASSED_TESTS}/${TOTAL_TESTS} passed, ${FAILED_TESTS} failed"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Failing Test:*\n${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Error:*\n${ESC_MSG}"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View CI Run"
+                    },
+                    "url": "${RUN_URL}",
+                    "style": "danger"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
 
-          # YAML-safe JSON construction (no single quotes)
-          JSON_PAYLOAD=$(printf "{\"text\": \"%s\"}" "$TEXT")
-          curl -s -X POST -H "Content-type: application/json" \
-            --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
+          curl -X POST -H "Content-type: application/json" \
+          --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
           
       - name: Slack notify on success
         if: success()
