@@ -10,6 +10,9 @@ jobs:
   tests:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,19 +24,23 @@ jobs:
           java-version: "17"
           cache: maven
 
+      # Optional: Show Chrome/Java versions for debugging
       - name: Show tool versions
         run: |
           google-chrome --version || true
           java -version
           mvn -v
 
+      # Run tests in headless mode (your BaseTest reads -Dheadless=true)
       - name: Run tests (headless)
         run: mvn -B -Dheadless=true clean test
-        continue-on-error: true
         env:
           HTTP_PROXY: ""
           HTTPS_PROXY: ""
 
+
+
+      # Always upload reports, even on failure
       - name: Upload Surefire test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -47,49 +54,43 @@ jobs:
           python3 - <<'PY'
           import os, glob, xml.etree.ElementTree as ET
 
-          path = "target/surefire-reports"
-          files = glob.glob(os.path.join(path, "TEST-*.xml"))
+          report_dir = "target/surefire-reports"
+          files = glob.glob(os.path.join(report_dir, "TEST-*.xml"))
 
           total = failures = errors = skipped = 0
           first_fail_class = first_fail_method = first_fail_msg = ""
 
           for f in files:
             try:
-              root = ET.parse(f).getroot()
+              tree = ET.parse(f)
+              root = tree.getroot()
+              # attributes live on <testsuite ...>
+              total     += int(root.attrib.get("tests", "0"))
+              failures  += int(root.attrib.get("failures", "0"))
+              errors    += int(root.attrib.get("errors", "0"))
+              skipped   += int(root.attrib.get("skipped", "0"))
 
-              total    += int(root.attrib.get("tests", "0"))
-              failures += int(root.attrib.get("failures", "0"))
-              errors   += int(root.attrib.get("errors", "0"))
-              skipped  += int(root.attrib.get("skipped", "0"))
-
-              # Only capture the FIRST failing test
+              # capture first failing test details if not already found
               if not first_fail_class:
                 for tc in root.iter("testcase"):
-                  # Try direct failure
-                  fe = None
-                  for tag in ("failure", "error"):
-                    node = tc.find(tag)
-                    if node is not None:
-                      fe = node
-                      break
-
-                  # Fallback: nested failure
-                  if fe is None:
-                    for node in tc.iter():
-                      if node.tag in ("failure", "error"):
-                        fe = node
-                        break
-
+                  # failure or error element means this test failed
+                  fe = tc.find("failure") or tc.find("error")
                   if fe is not None:
-                    first_fail_class  = tc.attrib.get("classname", "")
-                    first_fail_method = tc.attrib.get("name", "")
-                    first_fail_msg    = (fe.attrib.get("message") or fe.text or "").strip()
+                    first_fail_class  = tc.attrib.get("classname","")
+                    first_fail_method = tc.attrib.get("name","")
+                    # Prefer the message attribute; fallback to text
+                    first_fail_msg = (fe.attrib.get("message") or (fe.text or "")).strip()
+                    # keep it concise
+                    if len(first_fail_msg) > 300:
+                      first_fail_msg = first_fail_msg[:300] + "…"
                     break
             except Exception:
+              # ignore malformed files
               pass
 
           passed = max(total - failures - errors - skipped, 0)
 
+          # write to GITHUB_ENV for later steps
           with open(os.environ["GITHUB_ENV"], "a") as env:
             env.write(f"TOTAL_TESTS={total}\n")
             env.write(f"PASSED_TESTS={passed}\n")
@@ -101,57 +102,63 @@ jobs:
             env.write(f"FIRST_FAIL_MSG={first_fail_msg}\n")
           PY
 
+      # --- Notifications (failure only) ---
+
       - name: Slack notify on failure
         if: failure()
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          REPO: ${{ github.repository }}
-          BRANCH: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+           REPO:   ${{ github.repository }}
+           BRANCH: ${{ github.ref_name }}
+           SHA:    ${{ github.sha }}
+           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           FAIL_SECTION=""
-          if [ -n "$FIRST_FAIL_CLASS" ] && [ -n "$FIRST_FAIL_METHOD" ]; then
-            FAIL_SECTION="• *Failing Test:* $FIRST_FAIL_CLASS.$FIRST_FAIL_METHOD\n"
+          if [ -n "${FIRST_FAIL_CLASS}${FIRST_FAIL_METHOD}" ]; then
+            FAIL_SECTION="• *Failing Test:* ${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}\n"
           fi
 
           ERROR_SECTION=""
-          if [ -n "$FIRST_FAIL_MSG" ]; then
-            ERROR_SECTION="• *Error Message:* $FIRST_FAIL_MSG\n"
+          if [ -n "${FIRST_FAIL_MSG}" ]; then
+            ERROR_SECTION="• *Error Message:* ${FIRST_FAIL_MSG}\n"
           fi
 
-          TEXT="❌ *Build Failed — Automated Tests*\n\n\
-          • *Repository:* ${REPO}\n\
-          • *Branch:* ${BRANCH}\n\
-          • *Commit:* ${SHA}\n\
-          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed, ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped\n\n\
-          ${FAIL_SECTION}${ERROR_SECTION}\
-          Please review the CI logs for more details.\n\n\
+          TEXT="❌ *Build Failed — Automated Tests*\n
+          • *Repository:* ${REPO}\n
+          • *Branch:* ${BRANCH}\n
+          • *Commit:* ${SHA}\n
+          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed,\n  ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped\n
+          ${FAIL_SECTION}${ERROR_SECTION}\n
+          Please review the CI logs for more details.\n\n
           👉 *View run:* ${RUN_URL}"
 
-          JSON_PAYLOAD=$(printf "%s" "$TEXT" | jq -Rs '{text: .}')
+          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
           curl -s -X POST -H "Content-type: application/json" \
             --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
 
+          
       - name: Slack notify on success
         if: success()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          REPO: ${{ github.repository }}
+          REPO:   ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
+          SHA:    ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TOTAL_TESTS:   ${{ env.TOTAL_TESTS }}
+          PASSED_TESTS:  ${{ env.PASSED_TESTS }}
+          SKIPPED_TESTS: ${{ env.SKIPPED_TESTS }}
         run: |
-          TEXT="🎉 *Build Successful — Automated Tests Passed*\n\n\
-          • *Repository:* ${REPO}\n\
-          • *Branch:* ${BRANCH}\n\
-          • *Commit:* ${SHA}\n\
-          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed, ${SKIPPED_TESTS} skipped\n\n\
+          TEXT="🎉 *Build Successful — Automated Tests Passed*\n
+          • *Repository:* ${REPO}\n
+          • *Branch:* ${BRANCH}\n
+          • *Commit:* ${SHA}\n
+          • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed, ${SKIPPED_TESTS} skipped\n\n
+          All checks completed successfully.\n\n
           👉 *View run:* ${RUN_URL}"
 
-          JSON_PAYLOAD=$(printf "%s" "$TEXT" | jq -Rs '{text: .}')
-          curl -s -X POST -H "Content-type: application/json" \
-            --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
+          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
+          curl -s -X POST -H "Content-type: application/json" --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
 
       - name: Email notify on failure
         if: failure()
@@ -161,34 +168,21 @@ jobs:
           server_port: ${{ secrets.SMTP_PORT }}
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          from: ${{ secrets.MAIL_FROM }}
-          to: ${{ secrets.MAIL_TO }}
-          secure: true
           subject: "❌ CI failed — ${{ github.repository }} @ ${{ github.ref_name }}"
-          content_type: text/html
+          to: ${{ secrets.MAIL_TO }}
+          from: ${{ secrets.MAIL_FROM }}
+          secure: true
           html_body: |
             <h3>CI FAILED</h3>
-            <p><b>Repository:</b> ${{ github.repository }}</p>
-            <p><b>Branch:</b> ${{ github.ref_name }}</p>
-            <p><b>Commit:</b> ${{ github.sha }}</p>
-            <p><b>Results:</b> ${{ env.PASSED_TESTS }}/${{ env.TOTAL_TESTS }} passed</p>
-            <p><b>Failing Test:</b> ${{ env.FIRST_FAIL_CLASS }}.${{ env.FIRST_FAIL_METHOD }}</p>
-            <p><b>Error Message:</b> ${{ env.FIRST_FAIL_MSG }}</p>
-            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Run</a></p>
+            <p>Repository: ${{ github.repository }}</p>
+            <p>Branch: ${{ github.ref_name }}</p>
+            <p>Commit: ${{ github.sha }}</p>
+            <p>Run: <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Run</a></p>
 
       - name: Summary
         if: always()
         run: |
-          echo "### Selenium CI Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Total tests: ${TOTAL_TESTS}" >> $GITHUB_STEP_SUMMARY
-          echo "- Passed: ${PASSED_TESTS}" >> $GITHUB_STEP_SUMMARY
-          echo "- Failed: ${FAILED_TESTS}" >> $GITHUB_STEP_SUMMARY
-          echo "- Errors: ${ERRORED_TESTS}" >> $GITHUB_STEP_SUMMARY
-          echo "- Skipped: ${SKIPPED_TESTS}" >> $GITHUB_STEP_SUMMARY
-          if [ -n "$FIRST_FAIL_CLASS" ]; then
-            echo "- First failing test: $FIRST_FAIL_CLASS.$FIRST_FAIL_METHOD" >> $GITHUB_STEP_SUMMARY
-            echo "- Error: $FIRST_FAIL_MSG" >> $GITHUB_STEP_SUMMARY
-          fi
+            echo "### Selenium CI Summary" >> $GITHUB_STEP_SUMMARY
+            echo "- Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
