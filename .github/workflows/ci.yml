@@ -121,15 +121,14 @@ jobs:
           FIRST_FAIL_METHOD: ${{ env.FIRST_FAIL_METHOD }}
           FIRST_FAIL_MSG:    ${{ env.FIRST_FAIL_MSG }}
         run: |
-          # Build safe test summary
-          FAIL_LINE=""
+          FAIL_SECTION=""
           if [ -n "${FIRST_FAIL_CLASS}${FIRST_FAIL_METHOD}" ]; then
-            FAIL_LINE="• *Failing Test:* ${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}\n"
+            FAIL_SECTION="• *Failing Test:* ${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}\n"
           fi
 
-          MSG_LINE=""
+          ERROR_SECTION=""
           if [ -n "${FIRST_FAIL_MSG}" ]; then
-            MSG_LINE="• *Error:* ${FIRST_FAIL_MSG}\n"
+            ERROR_SECTION="• *Error Message:* ${FIRST_FAIL_MSG}\n"
           fi
 
           TEXT="❌ *Build Failed — Automated Tests*\n
@@ -137,13 +136,14 @@ jobs:
           • *Branch:* ${BRANCH}\n
           • *Commit:* ${SHA}\n
           • *Results:* ${PASSED_TESTS}/${TOTAL_TESTS} passed,\n  ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped\n
-          ${FAIL_LINE}${MSG_LINE}\n
+          ${FAIL_SECTION}${ERROR_SECTION}\n
           Please review the CI logs for more details.\n\n
           👉 *View run:* ${RUN_URL}"
 
           JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
           curl -s -X POST -H "Content-type: application/json" \
             --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
+
           
       - name: Slack notify on success
         if: success()
