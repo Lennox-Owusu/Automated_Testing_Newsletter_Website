@@ -242,11 +242,11 @@ jobs:
           curl -s -X POST -H "Content-type: application/json" \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" -w "\nHTTP %{http_code}\n"
 
-      - name: Prepare email body (success)
-        if: success()
-        id: email_body_ok
-        run: |
-          cat > ok_email.html <<'HTML_EOF'
+            - name: Prepare email body (success)
+          if: success()
+          id: email_body_ok
+          run: |
+          cat > ok_email.html <<HTML_EOF
           <div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto;">
           <h2 style="margin:0 0 12px 0;">✅ CI Passed — Automated Tests</h2>
           <p style="color:#444;margin:0 0 16px 0;">
@@ -288,7 +288,6 @@ jobs:
             cat ok_email.html
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-
       - name: Email notify on success
         if: success()
         uses: dawidd6/action-send-mail@v3
