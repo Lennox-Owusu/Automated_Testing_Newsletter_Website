@@ -24,23 +24,18 @@ jobs:
           java-version: "17"
           cache: maven
 
-      # Optional: Show Chrome/Java versions for debugging
       - name: Show tool versions
         run: |
           google-chrome --version || true
           java -version
           mvn -v
 
-      # Run tests in headless mode (your BaseTest reads -Dheadless=true)
       - name: Run tests (headless)
         run: mvn -B -Dheadless=true clean test
         env:
           HTTP_PROXY: ""
           HTTPS_PROXY: ""
 
-
-
-      # Always upload reports, even on failure
       - name: Upload Surefire test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,15 +70,12 @@ jobs:
                   if not first_fail_class:
                       for tc in root.iter("testcase"):
                           fe = None
-
-                          # direct failure/error
                           for tag in ("failure", "error"):
                               node = tc.find(tag)
                               if node is not None:
                                   fe = node
                                   break
 
-                          # nested failure/error
                           if fe is None:
                               for node in tc.iter():
                                   if node.tag in ("failure", "error"):
@@ -93,31 +85,13 @@ jobs:
                           if fe is not None:
                               first_fail_class  = tc.attrib.get("classname", "")
                               first_fail_method = tc.attrib.get("name", "")
-
                               raw_msg = fe.attrib.get("message")
-                              if raw_msg and raw_msg.strip():
-                                  first_fail_msg = raw_msg.strip()
-                              else:
-                                  # CDATA extraction
-                                  cdata = "".join(fe.itertext()).strip()
-                                  first_fail_msg = cdata if cdata else "No failure message"
-
+                              first_fail_msg = (raw_msg.strip() if raw_msg else "".join(fe.itertext()).strip()) or "No failure message"
                               break
-
               except Exception as e:
                   print("⚠️ DEBUG: Parser error:", e)
 
           passed = max(total - failures - errors - skipped, 0)
-
-          print("📌 DEBUG SUMMARY")
-          print("TOTAL:", total)
-          print("PASSED:", passed)
-          print("FAILED:", failures)
-          print("ERRORS:", errors)
-          print("SKIPPED:", skipped)
-          print("FAIL CLASS:", first_fail_class)
-          print("FAIL METHOD:", first_fail_method)
-          print("FAIL MSG:", first_fail_msg)
 
           with open(os.environ["GITHUB_ENV"], "a") as env:
               env.write(f"TOTAL_TESTS={total}\n")
@@ -129,7 +103,6 @@ jobs:
               env.write(f"FIRST_FAIL_METHOD={first_fail_method}\n")
               env.write(f"FIRST_FAIL_MSG={first_fail_msg}\n")
           PY
-      # --- Notifications (failure only) ---
 
       - name: Slack notify on failure
         if: failure()
@@ -140,35 +113,28 @@ jobs:
           SHA:    ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # Ensure jq exists (usually present on ubuntu-latest)
           if ! command -v jq >/dev/null 2>&1; then
             sudo apt-get update && sudo apt-get install -y jq
           fi
 
-          echo "DEBUG FAIL CLASS: $FIRST_FAIL_CLASS"
-          echo "DEBUG FAIL METHOD: $FIRST_FAIL_METHOD"
-          echo "DEBUG FAIL MSG: $FIRST_FAIL_MSG"
-
-          # Build JSON safely with jq (handles quotes/newlines)
           PAYLOAD=$(
             jq -n \
-              --arg repo    "$REPO" \
-              --arg branch  "$BRANCH" \
-              --arg sha     "$SHA" \
-              --arg run     "$RUN_URL" \
-              --arg passed  "$PASSED_TESTS" \
-              --arg total   "$TOTAL_TESTS" \
-              --arg failed  "$FAILED_TESTS" \
-              --arg errs    "$ERRORED_TESTS" \
+              --arg repo "$REPO" \
+              --arg branch "$BRANCH" \
+              --arg sha "$SHA" \
+              --arg run "$RUN_URL" \
+              --arg passed "$PASSED_TESTS" \
+              --arg total "$TOTAL_TESTS" \
+              --arg failed "$FAILED_TESTS" \
+              --arg errs "$ERRORED_TESTS" \
               --arg skipped "$SKIPPED_TESTS" \
-              --arg fclass  "$FIRST_FAIL_CLASS" \
+              --arg fclass "$FIRST_FAIL_CLASS" \
               --arg fmethod "$FIRST_FAIL_METHOD" \
-              --arg fmsg    "$FIRST_FAIL_MSG" \
+              --arg fmsg "$FIRST_FAIL_MSG" \
               '{
                  text: "CI Failed — Automated Tests",
                  blocks: [
-                   { "type":"header",
-                     "text": { "type":"plain_text", "text":"❌ CI Failed — Automated Tests" } },
+                   { "type":"header", "text": { "type":"plain_text", "text":"❌ CI Failed — Automated Tests" } },
                    { "type":"section",
                      "fields": [
                        { "type":"mrkdwn", "text": ("*Repository:*\n" + $repo) },
@@ -183,18 +149,15 @@ jobs:
                      ]},
                    { "type":"actions",
                      "elements": [
-                       { "type":"button",
-                         "text": { "type":"plain_text", "text":"View CI Run" },
-                         "url": $run, "style":"danger" }
+                       { "type":"button", "text": { "type":"plain_text", "text":"View CI Run" }, "url": $run, "style":"danger" }
                      ]}
                  ]
                }'
           )
 
-          # Send and print HTTP status for quick debugging
           curl -s -X POST -H "Content-type: application/json" \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" -w "\nHTTP %{http_code}\n"
-          
+
       - name: Slack notify on success
         if: success()
         env:
@@ -210,18 +173,17 @@ jobs:
 
           PAYLOAD=$(
             jq -n \
-              --arg repo    "$REPO" \
-              --arg branch  "$BRANCH" \
-              --arg sha     "$SHA" \
-              --arg run     "$RUN_URL" \
-              --arg passed  "$PASSED_TESTS" \
-              --arg total   "$TOTAL_TESTS" \
+              --arg repo "$REPO" \
+              --arg branch "$BRANCH" \
+              --arg sha "$SHA" \
+              --arg run "$RUN_URL" \
+              --arg passed "$PASSED_TESTS" \
+              --arg total "$TOTAL_TESTS" \
               --arg skipped "$SKIPPED_TESTS" \
               '{
                  text: "CI Passed — Automated Tests",
                  blocks: [
-                   { "type":"header",
-                     "text": { "type":"plain_text", "text":"✅ CI Passed — Automated Tests" } },
+                   { "type":"header", "text": { "type":"plain_text", "text":"✅ CI Passed — Automated Tests" } },
                    { "type":"section",
                      "fields": [
                        { "type":"mrkdwn", "text": ("*Repository:*\n" + $repo) },
@@ -231,9 +193,7 @@ jobs:
                      ]},
                    { "type":"actions",
                      "elements": [
-                       { "type":"button",
-                         "text": { "type":"plain_text", "text":"View CI Run" },
-                         "url": $run, "style":"primary" }
+                       { "type":"button", "text": { "type":"plain_text", "text":"View CI Run" }, "url": $run, "style":"primary" }
                      ]}
                  ]
                }'
@@ -242,36 +202,58 @@ jobs:
           curl -s -X POST -H "Content-type: application/json" \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" -w "\nHTTP %{http_code}\n"
 
+      # -----------------------
+      # FIXED HTML EMAIL + DEBUG
+      # -----------------------
+
       - name: Prepare email body (success)
         if: success()
         id: email_body_ok
         run: |
-         cat > ok_email.html <<EOF
-         <div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto;">
-         <h2>✅ CI build Passed — Automated Tests</h2>
-         <p>All automated checks completed successfully.</p>
+          cat > ok_email.html <<HTML
+          <div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto;">
+          <h2>✅ CI Passed — Automated Tests</h2>
+          <p>All automated checks completed successfully.</p>
 
-         <table style="border-collapse:collapse;width:100%;border:1px solid #eee;font-size:14px;">
-         <tr><td><b>Repository</b></td><td>$GITHUB_REPOSITORY</td></tr>
-         <tr><td><b>Branch</b></td><td>$GITHUB_REF_NAME</td></tr>
-         <tr><td><b>Commit</b></td><td>$GITHUB_SHA</td></tr>
-         <tr><td><b>Results</b></td><td>$PASSED_TESTS/$TOTAL_TESTS passed, $SKIPPED_TESTS skipped</td></tr>
-         </table>
+          <table style="border-collapse:collapse;width:100%;border:1px solid #eee;font-size:14px;">
+          <tr><td><b>Repository</b></td><td>$GITHUB_REPOSITORY</td></tr>
+          <tr><td><b>Branch</b></td><td>$GITHUB_REF_NAME</td></tr>
+          <tr><td><b>Commit</b></td><td>$GITHUB_SHA</td></tr>
+          <tr><td><b>Results</b></td><td>$PASSED_TESTS/$TOTAL_TESTS passed, $SKIPPED_TESTS skipped</td></tr>
+          </table>
 
-         <p>
-         <a href="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+       <p style="margin-top: 14px;">
+         <a href="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
          style="background:#0ea5e9;color:#fff;padding:10px 14px;border-radius:6px;text-decoration:none;">
          View CI Run
          </a>
          </p>
          </div>
-          EOF
+         HTML
 
-         {
-          echo "html<<EOF"
-          cat ok_email.html
-          echo "EOF"
+          {
+            echo "html<<EOF"
+            cat ok_email.html
+            echo "EOF"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Debug email body and envs
+        if: success()
+        run: |
+          echo "----- HTML Preview -----"
+          sed -n '1,120p' ok_email.html || true
+          echo ""
+          echo "----- File size -----"
+          wc -c ok_email.html || true
+          echo ""
+          echo "--- ENV VARS ---"
+          echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
+          echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          echo "PASSED_TESTS=$PASSED_TESTS"
+          echo "TOTAL_TESTS=$TOTAL_TESTS"
+          echo "SKIPPED_TESTS=$SKIPPED_TESTS"
+
       - name: Email notify on success
         if: success()
         uses: dawidd6/action-send-mail@v3
@@ -279,20 +261,18 @@ jobs:
           server_address: smtp.gmail.com
           server_port: 465
           secure: true
-          username: ${{ secrets.SMTP_USERNAME }}   # your full Gmail address
-          password: ${{ secrets.SMTP_PASSWORD }}   # Gmail App Password
-          from: ${{ secrets.SMTP_USERNAME }}        # must match Gmail account
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          from: ${{ secrets.SMTP_USERNAME }}
           to: ${{ secrets.MAIL_TO }}
           subject: "✅ CI passed — ${{ github.repository }} @ ${{ github.ref_name }}"
           html_body: ${{ steps.email_body_ok.outputs.html }}
-          
 
       - name: Summary
         if: always()
         run: |
           {
             echo "## 🚀 Selenium CI Summary"
-            echo ""
             echo "**Status:** \`${{ job.status }}\`"
             echo "**Branch:** ${{ github.ref_name }}"
             echo "**Commit:** ${{ github.sha }}"
@@ -304,17 +284,9 @@ jobs:
             echo "- Errors: ${ERRORED_TESTS}"
             echo "- Skipped: ${SKIPPED_TESTS}"
             echo ""
-
             if [ -n "$FIRST_FAIL_CLASS" ]; then
               echo "### ❌ First Failing Test"
               echo "- **Test:** \`${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}\`"
               echo "- **Error:** \`${FIRST_FAIL_MSG}\`"
-              echo ""
             fi
-
-            echo "### 🔗 CI Run Link"
-            echo "[Click here to view this workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           } >> $GITHUB_STEP_SUMMARY
-
-
-
