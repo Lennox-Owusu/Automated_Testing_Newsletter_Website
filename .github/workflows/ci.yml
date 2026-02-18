@@ -51,7 +51,7 @@ jobs:
       - name: Summarize test results
         if: always()
         run: |
-          python3 - <<'PY'
+          python3 - << 'PY'
           import os, glob, xml.etree.ElementTree as ET
 
           report_dir = "target/surefire-reports"
@@ -60,69 +60,75 @@ jobs:
           total = failures = errors = skipped = 0
           first_fail_class = first_fail_method = first_fail_msg = ""
 
+          print("📌 DEBUG: Found XML files:", files)
+
           for f in files:
-            try:
-              tree = ET.parse(f)
-              root = tree.getroot()
-              # attributes live on <testsuite ...>
-              total     += int(root.attrib.get("tests", "0"))
-              failures  += int(root.attrib.get("failures", "0"))
-              errors    += int(root.attrib.get("errors", "0"))
-              skipped   += int(root.attrib.get("skipped", "0"))
+              try:
+                  print("📌 DEBUG: Parsing:", f)
+                  root = ET.parse(f).getroot()
 
-             # capture first failing test details if not already found
-          if not first_fail_class:
-              for tc in root.iter("testcase"):
+                  total    += int(root.attrib.get("tests", "0"))
+                  failures += int(root.attrib.get("failures", "0"))
+                  errors   += int(root.attrib.get("errors", "0"))
+                  skipped  += int(root.attrib.get("skipped", "0"))
 
-          fe = None
+                  if not first_fail_class:
+                      for tc in root.iter("testcase"):
+                          fe = None
 
-                 for tag in ("failure", "error"):
-                    node = tc.find(tag)
-                    if node is not None:
-                    fe = node
-                    break
+                          # direct failure/error
+                          for tag in ("failure", "error"):
+                              node = tc.find(tag)
+                              if node is not None:
+                                  fe = node
+                                  break
 
-           if fe is None:
-            for node in tc.iter():
-                if node.tag in ("failure", "error"):
-                    fe = node
-                    break
+                          # nested failure/error
+                          if fe is None:
+                              for node in tc.iter():
+                                  if node.tag in ("failure", "error"):
+                                      fe = node
+                                      break
 
-            if fe is not None:
-               first_fail_class  = tc.attrib.get("classname", "")
-               first_fail_method = tc.attrib.get("name", "")
+                          if fe is not None:
+                              first_fail_class  = tc.attrib.get("classname", "")
+                              first_fail_method = tc.attrib.get("name", "")
 
-               raw_msg = fe.attrib.get("message")
-            if raw_msg and raw_msg.strip():
-                first_fail_msg = raw_msg.strip()
-            else:
-                # CDATA-safe: extract ALL nested text
-                nested = "".join(fe.itertext()).strip()
-                first_fail_msg = nested if nested else "No failure message found"
+                              raw_msg = fe.attrib.get("message")
+                              if raw_msg and raw_msg.strip():
+                                  first_fail_msg = raw_msg.strip()
+                              else:
+                                  # CDATA extraction
+                                  cdata = "".join(fe.itertext()).strip()
+                                  first_fail_msg = cdata if cdata else "No failure message"
 
-            # Limit length for Slack
-            if len(first_fail_msg) > 400:
-                first_fail_msg = first_fail_msg[:400] + "…"
+                              break
 
-             break
-            except Exception:
-              # ignore malformed files
-              pass
+              except Exception as e:
+                  print("⚠️ DEBUG: Parser error:", e)
 
-             passed = max(total - failures - errors - skipped, 0)
-         
-          # write to GITHUB_ENV for later steps
-            with open(os.environ["GITHUB_ENV"], "a") as env:
-             env.write(f"TOTAL_TESTS={total}\n")
-             env.write(f"PASSED_TESTS={passed}\n")
-             env.write(f"FAILED_TESTS={failures}\n")
-             env.write(f"ERRORED_TESTS={errors}\n")
-             env.write(f"SKIPPED_TESTS={skipped}\n")
-             env.write(f"FIRST_FAIL_CLASS={first_fail_class}\n")
-             env.write(f"FIRST_FAIL_METHOD={first_fail_method}\n")
-             env.write(f"FIRST_FAIL_MSG={first_fail_msg}\n")
-             PY
+          passed = max(total - failures - errors - skipped, 0)
 
+          print("📌 DEBUG SUMMARY")
+          print("TOTAL:", total)
+          print("PASSED:", passed)
+          print("FAILED:", failures)
+          print("ERRORS:", errors)
+          print("SKIPPED:", skipped)
+          print("FAIL CLASS:", first_fail_class)
+          print("FAIL METHOD:", first_fail_method)
+          print("FAIL MSG:", first_fail_msg)
+
+          with open(os.environ["GITHUB_ENV"], "a") as env:
+              env.write(f"TOTAL_TESTS={total}\n")
+              env.write(f"PASSED_TESTS={passed}\n")
+              env.write(f"FAILED_TESTS={failures}\n")
+              env.write(f"ERRORED_TESTS={errors}\n")
+              env.write(f"SKIPPED_TESTS={skipped}\n")
+              env.write(f"FIRST_FAIL_CLASS={first_fail_class}\n")
+              env.write(f"FIRST_FAIL_METHOD={first_fail_method}\n")
+              env.write(f"FIRST_FAIL_MSG={first_fail_msg}\n")
+          PY
       # --- Notifications (failure only) ---
 
       - name: Slack notify on failure
