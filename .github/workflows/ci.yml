@@ -107,20 +107,27 @@ jobs:
       - name: Slack notify on failure
         if: failure()
         env:
-           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-           REPO:   ${{ github.repository }}
-           BRANCH: ${{ github.ref_name }}
-           SHA:    ${{ github.sha }}
-           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO:   ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          SHA:    ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # (Optional one-time debug, remove after verifying)
+          echo "DEBUG FIRST_FAIL_CLASS=$FIRST_FAIL_CLASS"
+          echo "DEBUG FIRST_FAIL_METHOD=$FIRST_FAIL_METHOD"
+          echo "DEBUG FIRST_FAIL_MSG=$FIRST_FAIL_MSG"
+
           FAIL_SECTION=""
-          if [ -n "${FIRST_FAIL_CLASS}${FIRST_FAIL_METHOD}" ]; then
-            FAIL_SECTION="• *Failing Test:* ${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}\n"
+          if [ -n "$FIRST_FAIL_CLASS" ] && [ -n "$FIRST_FAIL_METHOD" ]; then
+            FAIL_SECTION="• *Failing Test:* $FIRST_FAIL_CLASS.$FIRST_FAIL_METHOD\n"
           fi
 
+          # Escape any double quotes in the message to keep JSON valid
+          ESC_MSG=${FIRST_FAIL_MSG//\"/\\\"}
           ERROR_SECTION=""
-          if [ -n "${FIRST_FAIL_MSG}" ]; then
-            ERROR_SECTION="• *Error Message:* ${FIRST_FAIL_MSG}\n"
+          if [ -n "$ESC_MSG" ]; then
+            ERROR_SECTION="• *Error Message:* $ESC_MSG\n"
           fi
 
           TEXT="❌ *Build Failed — Automated Tests*\n
@@ -132,10 +139,10 @@ jobs:
           Please review the CI logs for more details.\n\n
           👉 *View run:* ${RUN_URL}"
 
-          JSON_PAYLOAD=$(printf '{"text": "%s"}' "$TEXT")
+          # YAML-safe JSON construction (no single quotes)
+          JSON_PAYLOAD=$(printf "{\"text\": \"%s\"}" "$TEXT")
           curl -s -X POST -H "Content-type: application/json" \
             --data "$JSON_PAYLOAD" "$SLACK_WEBHOOK_URL"
-
           
       - name: Slack notify on success
         if: success()
