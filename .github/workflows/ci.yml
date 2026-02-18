@@ -112,14 +112,6 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           SHA:    ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          TOTAL_TESTS:    ${{ env.TOTAL_TESTS }}
-          PASSED_TESTS:   ${{ env.PASSED_TESTS }}
-          FAILED_TESTS:   ${{ env.FAILED_TESTS }}
-          ERRORED_TESTS:  ${{ env.ERRORED_TESTS }}
-          SKIPPED_TESTS:  ${{ env.SKIPPED_TESTS }}
-          FIRST_FAIL_CLASS:  ${{ env.FIRST_FAIL_CLASS }}
-          FIRST_FAIL_METHOD: ${{ env.FIRST_FAIL_METHOD }}
-          FIRST_FAIL_MSG:    ${{ env.FIRST_FAIL_MSG }}
         run: |
           FAIL_SECTION=""
           if [ -n "${FIRST_FAIL_CLASS}${FIRST_FAIL_METHOD}" ]; then
