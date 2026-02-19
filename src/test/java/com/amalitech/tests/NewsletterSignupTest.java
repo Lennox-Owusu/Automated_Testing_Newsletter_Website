@@ -63,7 +63,7 @@ public class NewsletterSignupTest extends BaseTest {
                 .enterEmail(badEmail)
                 .submitInvalid();
 
-        assertTrue(page.isErrorDisplayed(), "Expected error for invalid email.");
+        assertTrue(page.isErrorDisplayed(), "33.");
     }
 
     @Test
