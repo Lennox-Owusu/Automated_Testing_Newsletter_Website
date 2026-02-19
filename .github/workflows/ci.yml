@@ -24,14 +24,8 @@ jobs:
           java-version: "17"
           cache: maven
 
-      # Optional: Show Chrome/Java versions for debugging
-      - name: Show tool versions
-        run: |
-          google-chrome --version || true
-          java -version
-          mvn -v
-
-      # Run tests in headless mode (your BaseTest reads -Dheadless=true)
+     
+      # Run tests in headless mode 
       - name: Run tests (headless)
         run: mvn -B -Dheadless=true clean test
         env:
