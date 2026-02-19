@@ -38,6 +38,8 @@ jobs:
           HTTP_PROXY: ""
           HTTPS_PROXY: ""
 
+
+
       # Always upload reports, even on failure
       - name: Upload Surefire test reports
         if: always()
@@ -127,7 +129,6 @@ jobs:
               env.write(f"FIRST_FAIL_METHOD={first_fail_method}\n")
               env.write(f"FIRST_FAIL_MSG={first_fail_msg}\n")
           PY
-
       # --- Notifications (failure only) ---
 
       - name: Slack notify on failure
@@ -193,68 +194,7 @@ jobs:
           # Send and print HTTP status for quick debugging
           curl -s -X POST -H "Content-type: application/json" \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" -w "\nHTTP %{http_code}\n"
-
-      - name: Prepare email body (failure)
-        if: failure()
-        id: email_body_fail
-        run: |
-          cat > fail_email.html <<'HTML_EOF'
-          <div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto;">
-            <h2 style="margin:0 0 12px 0;color:#b91c1c;">❌ CI Failed — Automated Tests</h2>
-            <p style="color:#444;margin:0 0 16px 0;">
-              One or more automated checks failed on <b>${GITHUB_REF_NAME}</b>.
-            </p>
-
-            <table role="presentation" cellspacing="0" cellpadding="6"
-                   style="border-collapse:collapse;width:100%;border:1px solid #eee;font-size:14px;">
-              <tr><td style="background:#fafafa;width:180px;"><b>Repository</b></td><td>${GITHUB_REPOSITORY}</td></tr>
-              <tr><td style="background:#fafafa;"><b>Branch</b></td><td>${GITHUB_REF_NAME}</td></tr>
-              <tr><td style="background:#fafafa;"><b>Commit</b></td><td>${GITHUB_SHA}</td></tr>
-              <tr><td style="background:#fafafa;"><b>Results</b></td>
-                  <td>${PASSED_TESTS}/${TOTAL_TESTS} passed, ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped</td></tr>
-            </table>
-
-            <div style="margin:16px 0 0 0;">
-              <h3 style="margin:0 0 8px 0;">First Failing Test</h3>
-              <pre style="white-space:pre-wrap;background:#fff5f5;border:1px solid #fee2e2;color:#7f1d1d;padding:10px;border-radius:6px;">
-Test: ${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}
-
-Error:
-${FIRST_FAIL_MSG}
-              </pre>
-            </div>
-
-            <p style="margin:16px 0 0 0;">
-              <a href="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-                 style="display:inline-block;background:#ef4444;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;">
-                 View CI Run
-              </a>
-            </p>
-          </div>
-          HTML_EOF
-
-          {
-            echo "html<<EOF"
-            cat fail_email.html
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Email notify on failure
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.SMTP_USERNAME }}   # your full Gmail address
-          password: ${{ secrets.SMTP_PASSWORD }}   # Gmail App Password
-          from: ${{ secrets.SMTP_USERNAME }}        # must match Gmail account
-          to: ${{ secrets.MAIL_TO }}
-          subject: "❌ CI failed — ${{ github.repository }} @ ${{ github.ref_name }}"
-          html_body: ${{ steps.email_body_fail.outputs.html }}
-
-      # --- Notifications (success only) ---
-
+          
       - name: Slack notify on success
         if: success()
         env:
@@ -348,6 +288,7 @@ ${FIRST_FAIL_MSG}
           to: ${{ secrets.MAIL_TO }}
           subject: "✅ CI passed — ${{ github.repository }} @ ${{ github.ref_name }}"
           html_body: ${{ steps.email_body_ok.outputs.html }}
+          
 
       - name: Summary
         if: always()
@@ -377,3 +318,6 @@ ${FIRST_FAIL_MSG}
             echo "### 🔗 CI Run Link"
             echo "[Click here to view this workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           } >> $GITHUB_STEP_SUMMARY
+
+
+
