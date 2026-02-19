@@ -288,6 +288,74 @@ jobs:
           to: ${{ secrets.MAIL_TO }}
           subject: "✅ CI passed — ${{ github.repository }} @ ${{ github.ref_name }}"
           html_body: ${{ steps.email_body_ok.outputs.html }}
+
+      - name: Prepare email body (failure)
+        if: failure()
+        id: email_body_fail
+        run: |
+          # Provide safe defaults if parsing step didn't set them
+          : "${TOTAL_TESTS:=0}"
+          : "${PASSED_TESTS:=0}"
+          : "${FAILED_TESTS:=0}"
+          : "${ERRORED_TESTS:=0}"
+          : "${SKIPPED_TESTS:=0}"
+          : "${FIRST_FAIL_CLASS:=N/A}"
+          : "${FIRST_FAIL_METHOD:=N/A}"
+          : "${FIRST_FAIL_MSG:=No failure message captured}"
+
+          cat > fail_email.html <<'HTML_EOF'
+          <div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto;">
+            <h2 style="margin:0 0 12px 0;color:#b91c1c;">❌ CI Failed — Automated Tests</h2>
+            <p style="color:#444;margin:0 0 16px 0;">
+              One or more automated checks failed for this run.
+            </p>
+
+            <table role="presentation" cellspacing="0" cellpadding="6"
+                   style="border-collapse:collapse;width:100%;border:1px solid #eee;font-size:14px;">
+              <tr><td style="background:#fafafa;width:180px;"><b>Repository</b></td><td>${GITHUB_REPOSITORY}</td></tr>
+              <tr><td style="background:#fafafa;"><b>Branch</b></td><td>${GITHUB_REF_NAME}</td></tr>
+              <tr><td style="background:#fafafa;"><b>Commit</b></td><td>${GITHUB_SHA}</td></tr>
+              <tr><td style="background:#fafafa;"><b>Results</b></td>
+                  <td>${PASSED_TESTS}/${TOTAL_TESTS} passed,
+                      ${FAILED_TESTS} failed, ${ERRORED_TESTS} errors, ${SKIPPED_TESTS} skipped</td></tr>
+              <tr><td style="background:#fafafa;"><b>Failing Test</b></td>
+                  <td>${FIRST_FAIL_CLASS}.${FIRST_FAIL_METHOD}</td></tr>
+              <tr><td style="background:#fafafa;"><b>Error</b></td>
+                  <td><pre style="white-space:pre-wrap;font-family:Menlo,Consolas,monospace;">${FIRST_FAIL_MSG}</pre></td></tr>
+            </table>
+
+            <p style="margin:16px 0 0 0;">
+              <a href="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+                 style="display:inline-block;background:#ef4444;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;">
+                View CI Run
+              </a>
+            </p>
+          </div>
+          HTML_EOF
+
+          {
+            echo "html<<EOF"
+            cat fail_email.html
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Email notify on failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}   # your full Gmail address
+          password: ${{ secrets.SMTP_PASSWORD }}   # Gmail App Password
+          from: ${{ secrets.SMTP_USERNAME }}        # must match Gmail account
+          to: ${{ secrets.MAIL_TO }}
+          subject: "❌ CI failed — ${{
+            github.repository
+            }} @ ${{
+                github.ref_name
+            }}"
+          html_body: ${{ steps.email_body_fail.outputs.html }}
           
 
       - name: Summary
