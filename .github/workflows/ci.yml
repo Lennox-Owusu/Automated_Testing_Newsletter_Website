@@ -93,15 +93,17 @@ jobs:
                           if fe is not None:
                               first_fail_class  = tc.attrib.get("classname", "")
                               first_fail_method = tc.attrib.get("name", "")
+
                               
-                              import html
+
                               raw_msg = fe.attrib.get("message")
                               if raw_msg and raw_msg.strip():
-                                 first_fail_msg = html.escape(raw_msg.strip())
+                                  first_fail_msg = raw_msg.strip()
                               else:
                                   # CDATA extraction
                                   cdata = "".join(fe.itertext()).strip()
-                                 first_fail_msg = html.escape(cdata) if cdata else "No failure message"
+                                  first_fail_msg = cdata if cdata else "No failure message"
+
                               break
 
               except Exception as e:
@@ -168,7 +170,7 @@ jobs:
                  text: "CI Failed — Automated Tests",
                  blocks: [
                    { "type":"header",
-                     "text": { "type":"plain_text", "text":"❌ CI Failed — Automated Tests" } },
+                     "text": { "type":"plain_text", "text":"❌ CI Build Failed — Automated Tests" } },
                    { "type":"section",
                      "fields": [
                        { "type":"mrkdwn", "text": ("*Repository:*\n" + $repo) },
@@ -218,10 +220,10 @@ jobs:
               --arg total   "$TOTAL_TESTS" \
               --arg skipped "$SKIPPED_TESTS" \
               '{
-                 text: "CI Passed — Automated Tests",
+                 text: "CI Build Passed — Automated Tests",
                  blocks: [
                    { "type":"header",
-                     "text": { "type":"plain_text", "text":"✅ CI Passed — Automated Tests" } },
+                     "text": { "type":"plain_text", "text":"✅ CI Build Passed — Automated Tests" } },
                    { "type":"section",
                      "fields": [
                        { "type":"mrkdwn", "text": ("*Repository:*\n" + $repo) },
