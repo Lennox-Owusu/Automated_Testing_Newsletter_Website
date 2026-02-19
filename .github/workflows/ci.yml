@@ -93,15 +93,15 @@ jobs:
                           if fe is not None:
                               first_fail_class  = tc.attrib.get("classname", "")
                               first_fail_method = tc.attrib.get("name", "")
-
+                              
+                              import html
                               raw_msg = fe.attrib.get("message")
                               if raw_msg and raw_msg.strip():
-                                  first_fail_msg = raw_msg.strip()
+                                 first_fail_msg = html.escape(raw_msg.strip())
                               else:
                                   # CDATA extraction
                                   cdata = "".join(fe.itertext()).strip()
-                                  first_fail_msg = cdata if cdata else "No failure message"
-
+                                 first_fail_msg = html.escape(cdata) if cdata else "No failure message"
                               break
 
               except Exception as e:
