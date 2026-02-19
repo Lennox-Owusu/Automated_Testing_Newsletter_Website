@@ -46,7 +46,7 @@ public class NewsletterSignupTest extends BaseTest {
 
         NewsletterPage page = new NewsletterPage(driver)
                 .open()
-                .enterEmail("Kofi")
+                .enterEmail("")
                 .submitInvalid();
 
         assertTrue(page.isErrorDisplayed(), "Expected validation error.");
