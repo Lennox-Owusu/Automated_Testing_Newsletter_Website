@@ -25,7 +25,7 @@ public abstract class BaseTest {
         ChromeOptions options = new ChromeOptions();
 
         // Read headless from system property
-        boolean headless = Boolean.parseBoolean(System.getProperty("headless", "false"));
+        boolean headless = Boolean.parseBoolean(System.getProperty("headless", "true"));
         log.info("Headless mode: {}", headless);
 
         if (headless) {
@@ -36,15 +36,6 @@ public abstract class BaseTest {
             options.addArguments("--headless=new");
         }
 
-        // Stable defaults for CI Linux + SSL fixes
-        options.addArguments(
-                "--window-size=1920,1080",
-                "--disable-gpu",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-ssl-key-logging",  // Security best practice
-                "--allow-insecure-localhost"   // If testing on localhost
-        );
 
         // Accept all certificates (for GitHub Pages and self-signed certs)
 
